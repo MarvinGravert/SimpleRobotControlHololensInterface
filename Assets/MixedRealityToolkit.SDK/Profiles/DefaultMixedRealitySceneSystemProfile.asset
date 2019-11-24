@@ -13,15 +13,15 @@ MonoBehaviour:
   m_Name: DefaultMixedRealitySceneSystemProfile
   m_EditorClassIdentifier: 
   isCustomProfile: 0
-  useManagerScene: 1
+  useManagerScene: 0
   managerScene:
     Name: DefaultManagerScene
     Path: Assets/MixedRealityToolkit.SDK/StandardAssets/Scenes/DefaultManagerScene.unity
-    Included: 1
-    BuildIndex: 0
+    Included: 0
+    BuildIndex: -1
     Tag: Untagged
     Asset: {fileID: 102900000, guid: ae7bb08d297fb69408695d8de0962524, type: 3}
-  useLightingScene: 1
+  useLightingScene: 0
   defaultLightingSceneIndex: 0
   lightingScenes:
   - Name: DefaultLightingScene
@@ -30,7 +30,19 @@ MonoBehaviour:
     BuildIndex: 1
     Tag: Untagged
     Asset: {fileID: 102900000, guid: 7e54e36c44f826c438c95da79f8de638, type: 3}
-  contentScenes: []
+  contentScenes:
+  - Name: supportScene
+    Path: Assets/Scenes/supportScene.unity
+    Included: 1
+    BuildIndex: 1
+    Tag: Untagged
+    Asset: {fileID: 102900000, guid: b903093d9be139b44bd4ed279395d1ba, type: 3}
+  - Name: generalMovingBlock
+    Path: Assets/Scenes/generalMovingBlock.unity
+    Included: 1
+    BuildIndex: 0
+    Tag: Untagged
+    Asset: {fileID: 102900000, guid: 24b10fe571775714988a47345068d194, type: 3}
   permittedLightingSceneComponentTypes:
   - reference: UnityEngine.Transform, UnityEngine.CoreModule
   - reference: UnityEngine.GameObject, UnityEngine.CoreModule
