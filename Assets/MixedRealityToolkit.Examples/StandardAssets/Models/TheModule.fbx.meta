@@ -169,6 +169,7 @@ ModelImporter:
     4300056: Legs2
     4300058: Legs3
     4300060: Legs4
+    2186277476908879412: ImportLogs
   externalObjects:
   - first:
       type: UnityEngine:Material

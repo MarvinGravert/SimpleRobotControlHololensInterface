@@ -7,6 +7,7 @@ ScriptedImporter:
     400000: main/glTF Scene Avocado/Transform
     400002: main/glTF Scene Avocado/Avocado/Transform
     2300000: main/glTF Scene Avocado/Avocado/MeshRenderer
+    2800000: Texture_0
     3300000: main/glTF Scene Avocado/Avocado/MeshFilter
     4300000: Avocado
     11400000: glTF data
