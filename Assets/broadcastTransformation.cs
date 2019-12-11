@@ -5,7 +5,9 @@ using UnityEngine;
 public class broadcastTransformation : MonoBehaviour
 {
     // Start is called before the first frame update
-    public GameObject Test;
+    public GameObject TextObjectCubePosition;
+    public GameObject TextCameraPosition;
+    public GameObject Camera;
     GameObject obj;
     void Start()
     {
@@ -17,9 +19,14 @@ public class broadcastTransformation : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        int randomNumber = Random.Range(0, 10);
-        string text = randomNumber.ToString();
+        
         Vector3 posi = this.transform.position;
-        Test.GetComponent<TextMesh>().text = posi.ToString();
+        Quaternion quat = this.transform.rotation;
+        TextObjectCubePosition.GetComponent<TextMesh>().text = posi.ToString()+"\n"+quat.ToString();
+
+        Vector3 posi2 = Camera.transform.position;
+        Quaternion quat2 = Camera.transform.rotation;
+        TextCameraPosition.GetComponent<TextMesh>().text= posi2.ToString() + "\n" + quat2.ToString();
+
     }
 }
