@@ -547,7 +547,7 @@ PlayerSettings:
   m_MobileRenderingPath: 1
   metroPackageName: Template_3D
   metroPackageVersion: 
-  metroCertificatePath: F:\Projectthesis\unity\userInterface\simpleUserInterface\Assets\WSATestCertificate.pfx
+  metroCertificatePath: Assets\WSATestCertificate.pfx
   metroCertificatePassword: 
   metroCertificateSubject: DefaultCompany
   metroCertificateIssuer: DefaultCompany
@@ -569,6 +569,8 @@ PlayerSettings:
   metroSplashScreenUseBackgroundColor: 0
   platformCapabilities:
     WindowsStoreApps:
+      InternetClient: True
+      Microphone: True
       SpatialPerception: True
   metroTargetDeviceFamilies: {}
   metroFTAName: 
