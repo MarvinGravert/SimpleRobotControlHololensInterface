@@ -12,7 +12,8 @@ using System.Threading.Tasks;
 public class tcpScript : MonoBehaviour
 {
 
-    
+    private Vector3 position;
+    private Quaternion rotation;
     public GameObject StatusTextManager;
 
 #if !UNITY_EDITOR
@@ -131,9 +132,11 @@ public class tcpScript : MonoBehaviour
         if (lastPacket != null)
         {
             ReportDataToTrackingManager(lastPacket);
+            StatusTextManager.GetComponent<TextMesh>().text = position.ToString() + "\n" + rotation.ToString();
         }
 
-  
+
+            
     }
     public void Start()
     {
@@ -184,6 +187,7 @@ public class tcpScript : MonoBehaviour
         //{
         //    ReportStringToTrackingManager(part);
         //}
+        ReportStringToTrackingManager(data);
     }
 
     private void ReportStringToTrackingManager(string rigidBodyString)
@@ -191,8 +195,8 @@ public class tcpScript : MonoBehaviour
         var parts = rigidBodyString.Split(':');
         var positionData = parts[1].Split(',');
         var rotationData = parts[2].Split(',');
-
-        int id = Int32.Parse(parts[0]);
+        //x,y,z:i,j,k,w original was number:x,y,z:i,j,k,w
+        //int id = Int32.Parse(parts[0]);
         float x = float.Parse(positionData[0]);
         float y = float.Parse(positionData[1]);
         float z = float.Parse(positionData[2]);
@@ -201,8 +205,8 @@ public class tcpScript : MonoBehaviour
         float qz = float.Parse(rotationData[2]);
         float qw = float.Parse(rotationData[3]);
 
-        Vector3 position = new Vector3(x, y, z);
-        Quaternion rotation = new Quaternion(qx, qy, qz, qw);
+        position = new Vector3(x, y, z);
+        rotation = new Quaternion(qx, qy, qz, qw);
 
         //TrackingManager.UpdateRigidBodyData(id, position, rotation);
     }
