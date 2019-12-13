@@ -144,8 +144,9 @@ public class tcpScript : MonoBehaviour
     }
     public void Start()
     {
-        Connect("192.168.178.44", "5005");//Laptop at home
+        //Connect("192.168.178.44", "5005");//Laptop at home
         //Connect("192.168.43.152", "5005");//Hotspot
+        Connect("192.168.43.138", "5005");//Alienware
     }
 
     public void ExchangePackets()
@@ -212,16 +213,20 @@ public class tcpScript : MonoBehaviour
         //unity uses Left handed thus we need to change the system 
         //we keep y and z the same and x invert thus 
         //https://gamedev.stackexchange.com/questions/157946/converting-a-quaternion-in-a-right-to-left-handed-coordinate-system
-        position = new Vector3(-x, y, z);
-        rotation = new Quaternion(qx, -qy, -qz, qw);
+        position = new Vector3(-x, y, -z);//RealWorld object in holoWorld
+        rotation = new Quaternion(qx, -qy, qz, qw);
         //we are interestd in the vive Position in Hololens World hence we need to transform backwards
         //we have our previous transformation matrix aka transform from vive to reference object
         //Matrix4x4 viveToReference = Matrix4x4.TRS(position, rotation, new Vector3(1,1,1));//create translating, rotating,scaling matrix
         //reference object to hololensWorldCenter
         //Matrix4x4 ReferencetoHololensCenter = Matrix4x4.TRS(-referenceObject.transform.position, Quaternion.Inverse(referenceObject.transform.rotation), new Vector3(1, 1, 1));
         //Matrix4x4 viveToHololensCenter = ReferencetoHololensCenter * viveToReference;
-        this.transform.position = position;//this is not correct!!!!
-        this.transform.rotation = rotation;
+        Vector3 refPos = referenceObject.transform.position;
+        Quaternion refRot = referenceObject.transform.rotation;
+        Quaternion invRefRot = Quaternion.Inverse(refRot);
+        Vector3 invRefPos = invRefRot * refPos;
+        this.transform.position = invRefRot*position+invRefPos;//this is not correct!!!!
+        this.transform.rotation = invRefRot*rotation;
 
         //TrackingManager.UpdateRigidBodyData(id, position, rotation);
     }
