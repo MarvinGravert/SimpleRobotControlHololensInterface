@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading;
 using UnityEngine;
 
+using System.Globalization;
+
 #if !UNITY_EDITOR
 using System.Threading.Tasks;
 #endif
@@ -15,6 +17,7 @@ public class tcpScript : MonoBehaviour
     private Vector3 position;
     private Quaternion rotation;
     public GameObject StatusTextManager;
+    public GameObject referenceObject;
 
 #if !UNITY_EDITOR
     private bool _useUWP = true;
@@ -96,6 +99,7 @@ public class tcpScript : MonoBehaviour
 
             RestartExchange();
             StatusTextManager.GetComponent<TextMesh>().text = "Connected!";
+            connected = true;
         }
         catch (Exception e)
         {
@@ -107,11 +111,8 @@ public class tcpScript : MonoBehaviour
     private bool exchanging = false;
     private bool exchangeStopRequested = false;
     private string lastPacket = null;
-
+    private bool connected = false;
     private string errorStatus = null;
-    private string warningStatus = null;
-    private string successStatus = null;
-    private string unknownStatus = null;
 
     public void RestartExchange()
     {
@@ -129,10 +130,13 @@ public class tcpScript : MonoBehaviour
 
     public void Update()
     {
-        if (lastPacket != null)
+        //if (connected == false){
+        //    Connect("192.168.178.44", "5005");//makes the programm impossible to run if there is no connection:/
+        //}
+         if (lastPacket != null)
         {
             ReportDataToTrackingManager(lastPacket);
-            StatusTextManager.GetComponent<TextMesh>().text = position.ToString() + "\n" + rotation.ToString();
+            StatusTextManager.GetComponent<TextMesh>().text = position.ToString("F4") + "\n" + rotation.ToString("F4");
         }
 
 
@@ -140,7 +144,8 @@ public class tcpScript : MonoBehaviour
     }
     public void Start()
     {
-        Connect("192.168.178.44", "5005");
+        Connect("192.168.178.44", "5005");//Laptop at home
+        //Connect("192.168.43.152", "5005");//Hotspot
     }
 
     public void ExchangePackets()
@@ -151,7 +156,7 @@ public class tcpScript : MonoBehaviour
             exchanging = true;
 
             writer.Write("X\n");
-            Debug.Log("Sent data!");
+            //Debug.Log("Sent data!");
             string received = null;
 
 #if UNITY_EDITOR
@@ -168,7 +173,7 @@ public class tcpScript : MonoBehaviour
 #endif
 
             lastPacket = received;
-            Debug.Log("Read data: " + received);
+            //Debug.Log("Read data: " + received);
 
             exchanging = false;
         }
@@ -181,7 +186,7 @@ public class tcpScript : MonoBehaviour
             Debug.Log("Received a frame but data was null");
             return;
         }
-        print(data);
+        //print(data);
         //var parts = data.Split(';');
         //foreach (var part in parts)
         //{
@@ -193,20 +198,30 @@ public class tcpScript : MonoBehaviour
     private void ReportStringToTrackingManager(string rigidBodyString)
     {
         var parts = rigidBodyString.Split(':');
-        var positionData = parts[1].Split(',');
-        var rotationData = parts[2].Split(',');
+        var positionData = parts[0].Split(',');
+        var rotationData = parts[1].Split(',');
         //x,y,z:i,j,k,w original was number:x,y,z:i,j,k,w
-        //int id = Int32.Parse(parts[0]);
-        float x = float.Parse(positionData[0]);
-        float y = float.Parse(positionData[1]);
-        float z = float.Parse(positionData[2]);
-        float qx = float.Parse(rotationData[0]);
-        float qy = float.Parse(rotationData[1]);
-        float qz = float.Parse(rotationData[2]);
-        float qw = float.Parse(rotationData[3]);
-
-        position = new Vector3(x, y, z);
-        rotation = new Quaternion(qx, qy, qz, qw);
+        float x = float.Parse(positionData[0], CultureInfo.InvariantCulture);//CultureInfo.InvariantCulture necessary because it was not parsing "." correctly
+        float y = float.Parse(positionData[1], CultureInfo.InvariantCulture);
+        float z = float.Parse(positionData[2], CultureInfo.InvariantCulture);
+        float qx = float.Parse(rotationData[0], CultureInfo.InvariantCulture);
+        float qy = float.Parse(rotationData[1], CultureInfo.InvariantCulture);
+        float qz = float.Parse(rotationData[2], CultureInfo.InvariantCulture);
+        float qw = float.Parse(rotationData[3], CultureInfo.InvariantCulture);
+        Debug.Log(positionData);
+        //unity uses Left handed thus we need to change the system 
+        //we keep y and z the same and x invert thus 
+        //https://gamedev.stackexchange.com/questions/157946/converting-a-quaternion-in-a-right-to-left-handed-coordinate-system
+        position = new Vector3(-x, y, z);
+        rotation = new Quaternion(qx, -qy, -qz, qw);
+        //we are interestd in the vive Position in Hololens World hence we need to transform backwards
+        //we have our previous transformation matrix aka transform from vive to reference object
+        //Matrix4x4 viveToReference = Matrix4x4.TRS(position, rotation, new Vector3(1,1,1));//create translating, rotating,scaling matrix
+        //reference object to hololensWorldCenter
+        //Matrix4x4 ReferencetoHololensCenter = Matrix4x4.TRS(-referenceObject.transform.position, Quaternion.Inverse(referenceObject.transform.rotation), new Vector3(1, 1, 1));
+        //Matrix4x4 viveToHololensCenter = ReferencetoHololensCenter * viveToReference;
+        this.transform.position = position;//this is not correct!!!!
+        this.transform.rotation = rotation;
 
         //TrackingManager.UpdateRigidBodyData(id, position, rotation);
     }

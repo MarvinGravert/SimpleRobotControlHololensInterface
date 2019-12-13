@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class changeText : MonoBehaviour
 {
-    // Start is called before the first frame update
+    public GameObject obj;
     void Start()
     {
         
@@ -13,8 +13,6 @@ public class changeText : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        //int randomNumber = Random.Range(0, 10);
-        //string text = randomNumber.ToString();
-        //GetComponent<TextMesh>().text = text;
+        this.GetComponent<TextMesh>().text=obj.transform.position.ToString()+"\n"+obj.transform.rotation.ToString();
     }
 }
