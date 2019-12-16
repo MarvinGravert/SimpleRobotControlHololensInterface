@@ -7,18 +7,34 @@ using UnityEngine;
 
 using System.Globalization;
 
+
 #if !UNITY_EDITOR
 using System.Threading.Tasks;
 #endif
 
 public class tcpScript : MonoBehaviour
 {
+    public String ipTCPHost;
+    public String portTCPHost;
+
+    public GameObject StatusTextManager;
+    public GameObject referenceObject;
+    public GameObject controller;
+
+    public GameObject xAxis;
+    public GameObject yAxis;
+    public GameObject zAxis;
+    public GameObject xRotation;
+    public GameObject yRotation;
+    public GameObject zRotation;
+
+    private List<GameObject> axisList;
+    public float incrementStepSize;
 
     private Vector3 position;
     private Quaternion rotation;
-    public GameObject StatusTextManager;
-    public GameObject referenceObject;
-
+    private bool moveObjectFlag = false;
+    private int currentAxisNum = 0;
 #if !UNITY_EDITOR
     private bool _useUWP = true;
     private Windows.Networking.Sockets.StreamSocket socket;
@@ -133,20 +149,22 @@ public class tcpScript : MonoBehaviour
         //if (connected == false){
         //    Connect("192.168.178.44", "5005");//makes the programm impossible to run if there is no connection:/
         //}
-         if (lastPacket != null)
+        if (lastPacket != null)
         {
             ReportDataToTrackingManager(lastPacket);
             StatusTextManager.GetComponent<TextMesh>().text = position.ToString("F4") + "\n" + rotation.ToString("F4");
         }
 
 
-            
+
     }
     public void Start()
     {
+        Connect(ipTCPHost, portTCPHost);
         //Connect("192.168.178.44", "5005");//Laptop at home
         //Connect("192.168.43.152", "5005");//Hotspot
-        Connect("192.168.43.138", "5005");//Alienware
+        //Connect("192.168.43.138", "5005");//Alienware
+        axisList = new List<GameObject>() { xAxis, yAxis, zAxis, xRotation, yRotation, zRotation };
     }
 
     public void ExchangePackets()
@@ -193,42 +211,191 @@ public class tcpScript : MonoBehaviour
         //{
         //    ReportStringToTrackingManager(part);
         //}
+        //Debug.Log(data);
         ReportStringToTrackingManager(data);
     }
 
     private void ReportStringToTrackingManager(string rigidBodyString)
     {
-        var parts = rigidBodyString.Split(':');
-        var positionData = parts[0].Split(',');
-        var rotationData = parts[1].Split(',');
-        //x,y,z:i,j,k,w original was number:x,y,z:i,j,k,w
-        float x = float.Parse(positionData[0], CultureInfo.InvariantCulture);//CultureInfo.InvariantCulture necessary because it was not parsing "." correctly
-        float y = float.Parse(positionData[1], CultureInfo.InvariantCulture);
-        float z = float.Parse(positionData[2], CultureInfo.InvariantCulture);
-        float qx = float.Parse(rotationData[0], CultureInfo.InvariantCulture);
-        float qy = float.Parse(rotationData[1], CultureInfo.InvariantCulture);
-        float qz = float.Parse(rotationData[2], CultureInfo.InvariantCulture);
-        float qw = float.Parse(rotationData[3], CultureInfo.InvariantCulture);
-        Debug.Log(positionData);
-        //unity uses Left handed thus we need to change the system 
-        //we keep y and z the same and x invert thus 
-        //https://gamedev.stackexchange.com/questions/157946/converting-a-quaternion-in-a-right-to-left-handed-coordinate-system
-        position = new Vector3(-x, y, -z);//RealWorld object in holoWorld
-        rotation = new Quaternion(qx, -qy, qz, qw);
-        //we are interestd in the vive Position in Hololens World hence we need to transform backwards
-        //we have our previous transformation matrix aka transform from vive to reference object
-        //Matrix4x4 viveToReference = Matrix4x4.TRS(position, rotation, new Vector3(1,1,1));//create translating, rotating,scaling matrix
-        //reference object to hololensWorldCenter
-        //Matrix4x4 ReferencetoHololensCenter = Matrix4x4.TRS(-referenceObject.transform.position, Quaternion.Inverse(referenceObject.transform.rotation), new Vector3(1, 1, 1));
-        //Matrix4x4 viveToHololensCenter = ReferencetoHololensCenter * viveToReference;
-        Vector3 refPos = referenceObject.transform.position;
-        Quaternion refRot = referenceObject.transform.rotation;
-        Quaternion invRefRot = Quaternion.Inverse(refRot);
-        Vector3 invRefPos = invRefRot * refPos;
-        this.transform.position = invRefRot*position+invRefPos;//this is not correct!!!!
-        this.transform.rotation = invRefRot*rotation;
+        var parts = rigidBodyString.Split(':');//split position:rotation:AmpIncrement:ChangeA,ChangeB aka float:float:float:bool
+        //var positionData = parts[0].Split(',');
+        //var rotationData = parts[1].Split(',');
+        
+        ////x,y,z:i,j,k,w original was number:x,y,z:i,j,k,w
+        //float x = float.Parse(positionData[0], CultureInfo.InvariantCulture);//CultureInfo.InvariantCulture necessary because it was not parsing "." correctly
+        //float y = float.Parse(positionData[1], CultureInfo.InvariantCulture);
+        //float z = float.Parse(positionData[2], CultureInfo.InvariantCulture);
+        //float qx = float.Parse(rotationData[0], CultureInfo.InvariantCulture);
+        //float qy = float.Parse(rotationData[1], CultureInfo.InvariantCulture);
+        //float qz = float.Parse(rotationData[2], CultureInfo.InvariantCulture);
+        //float qw = float.Parse(rotationData[3], CultureInfo.InvariantCulture);
+        ////unity uses Left handed thus we need to change the system 
+        ////we keep y and z the same and x invert thus 
+        ////https://gamedev.stackexchange.com/questions/157946/converting-a-quaternion-in-a-right-to-left-handed-coordinate-system
+        //position = new Vector3(-x, y, -z);//RealWorld object in holoWorld
+        //rotation = new Quaternion(qx, -qy, qz, qw);
+        ////we are interestd in the vive Position in Hololens World hence we need to transform backwards
+        ////we have our previous transformation matrix aka transform from vive to reference object 
+        //Vector3 refPos = referenceObject.transform.position;
+        //Quaternion refRot = referenceObject.transform.rotation;
+        //Quaternion invRefRot = Quaternion.Inverse(refRot);
+        //Vector3 invRefPos = invRefRot * refPos;
+        //controller.transform.position = invRefRot * position + invRefPos;
+        //controller.transform.rotation = invRefRot * rotation;
 
-        //TrackingManager.UpdateRigidBodyData(id, position, rotation);
+
+        var incrementAmplifier = parts[0];
+        var buttonChanged = parts[1].Split(',');
+        float incrementAmp = float.Parse(incrementAmplifier, CultureInfo.InvariantCulture);
+        bool buttonAChanged = bool.Parse(buttonChanged[0]);
+        bool buttonBChanged = bool.Parse(buttonChanged[1]);
+        MoveObject(incrementAmp, buttonAChanged, buttonBChanged);
+        
+    }
+    private void MoveObject(float incrementAmp, bool buttonAChanged, bool buttonBChanged)
+    {
+        if (buttonAChanged == true)
+        {
+            Debug.Log(buttonAChanged);
+        }
+        if (buttonBChanged == true)
+        {
+            Debug.Log(buttonBChanged);
+        }
+
+        //Debug.Log(buttonBChanged);
+        //if buttonBCHaanged we change our mode frm moving to not moving or vice versa
+        //if this happends we also disable to color highlighting
+        //if buttonAchanged we move the axis the axis are numbered and include the rotation
+        //axis num 0-5 x y z rotx roty rotz
+        //incrementAmp is the multiplier for or stepsize
+        if (buttonAChanged == true)
+        {
+            //change target Axis
+            //first current highlight disable if moveObjectFlag is set
+            if (moveObjectFlag == false)
+            {
+                //if not true no axis is highlighed thus just increase counter
+                currentAxisNum++;
+                if (currentAxisNum > 5)
+                {
+                    currentAxisNum = 0;
+                }
+            }
+            else
+            {
+
+                if (currentAxisNum < 3)//the translationelements have subelemnents
+                {
+                    foreach (Renderer r in axisList[currentAxisNum].GetComponentsInChildren<Renderer>())
+                    {
+                        r.material.color = Color.white;
+                    }
+                }
+                else
+                {
+                    axisList[currentAxisNum].GetComponent<Renderer>().material.color = Color.white;
+                }
+                currentAxisNum++;
+                //now highlight the current one
+                if (currentAxisNum > 5)
+                {
+                    currentAxisNum = 0;
+                }
+                if (currentAxisNum < 3)
+                {
+                    foreach (Renderer r in axisList[currentAxisNum].GetComponentsInChildren<Renderer>())
+                    {
+                        r.material.color = Color.red;
+                    }
+                }
+                else
+                {
+                    axisList[currentAxisNum].GetComponent<Renderer>().material.color = Color.red;
+                }
+
+
+
+            }
+        }
+
+        if (buttonBChanged == true && moveObjectFlag == true)
+        {
+            //disable moving
+            moveObjectFlag = false;
+            //remove highlighting
+            if (currentAxisNum <3)
+            {
+                foreach (Renderer r in axisList[currentAxisNum].GetComponentsInChildren<Renderer>())
+                {
+                    r.material.color = Color.white;
+                }
+            }
+            else
+            {
+                axisList[currentAxisNum].GetComponent<Renderer>().material.color = Color.white;
+            }
+
+
+        }
+
+
+        if (buttonBChanged == true && moveObjectFlag == false)
+        {
+            //enable moving
+            moveObjectFlag = true;
+            //highlight axis
+            if (currentAxisNum < 3)
+            {
+                foreach (Renderer r in axisList[currentAxisNum].GetComponentsInChildren<Renderer>())
+                {
+                    r.material.color = Color.red;
+                }
+            }
+            else
+            {
+                axisList[currentAxisNum].GetComponent<Renderer>().material.color = Color.red;
+            }
+        }
+        if (moveObjectFlag == true)
+        {
+            //move object
+            if (currentAxisNum < 3)
+            {
+                //change position
+                switch (currentAxisNum)
+                {
+                    case 0:
+                        referenceObject.transform.position += new Vector3(0.05f * incrementAmp, 0, 0);
+                        break;
+                    case 1:
+                        referenceObject.transform.position += new Vector3(0,0.05f * incrementAmp,  0);
+                        break;
+                    case 2:
+                        referenceObject.transform.position += new Vector3(0,0,0.05f * incrementAmp);
+                        break;
+                }
+                
+            }
+            else
+            {
+                //change rotation
+                switch (currentAxisNum)
+                {
+                    case 3:
+                        referenceObject.transform.eulerAngles+= new Vector3(0.2f * incrementAmp, 0, 0);
+                        break;
+                    case 4:
+                        referenceObject.transform.eulerAngles += new Vector3(0,0.2f * incrementAmp, 0);
+                        break;
+                    case 5:
+                        referenceObject.transform.eulerAngles += new Vector3(0,0,0.2f * incrementAmp);
+                        break;
+                }
+            }
+        }
+
+        //if buttonBchanged == false and moveobjectflag==false nothing happens
     }
 
     public void StopExchange()
