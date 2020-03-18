@@ -35,6 +35,8 @@ public class tcpScript : MonoBehaviour
     private Quaternion rotation;
     private bool moveObjectFlag = false;
     private int currentAxisNum = 0;
+
+    private bool fineIncrementMode = false;//2 modes for increment input one for fine second one for rough
 #if !UNITY_EDITOR
     private bool _useUWP = true;
     private Windows.Networking.Sockets.StreamSocket socket;
@@ -218,58 +220,64 @@ public class tcpScript : MonoBehaviour
     private void ReportStringToTrackingManager(string rigidBodyString)
     {
         var parts = rigidBodyString.Split(':');//split position:rotation:AmpIncrement:ChangeA,ChangeB aka float:float:float:bool
-        //var positionData = parts[0].Split(',');
-        //var rotationData = parts[1].Split(',');
-        
-        ////x,y,z:i,j,k,w original was number:x,y,z:i,j,k,w
-        //float x = float.Parse(positionData[0], CultureInfo.InvariantCulture);//CultureInfo.InvariantCulture necessary because it was not parsing "." correctly
-        //float y = float.Parse(positionData[1], CultureInfo.InvariantCulture);
-        //float z = float.Parse(positionData[2], CultureInfo.InvariantCulture);
-        //float qx = float.Parse(rotationData[0], CultureInfo.InvariantCulture);
-        //float qy = float.Parse(rotationData[1], CultureInfo.InvariantCulture);
-        //float qz = float.Parse(rotationData[2], CultureInfo.InvariantCulture);
-        //float qw = float.Parse(rotationData[3], CultureInfo.InvariantCulture);
+        var positionData = parts[0].Split(',');
+        var rotationData = parts[1].Split(',');
+        var incrementAmplifier = parts[2];
+        var buttonChanged = parts[3].Split(',');
+        //x,y,z:i,j,k,w original was number:x,y,z:i,j,k,w
+        float x = float.Parse(positionData[0], CultureInfo.InvariantCulture);//CultureInfo.InvariantCulture necessary because it was not parsing "." correctly
+        float y = float.Parse(positionData[1], CultureInfo.InvariantCulture);
+        float z = float.Parse(positionData[2], CultureInfo.InvariantCulture);
+        float qx = float.Parse(rotationData[0], CultureInfo.InvariantCulture);
+        float qy = float.Parse(rotationData[1], CultureInfo.InvariantCulture);
+        float qz = float.Parse(rotationData[2], CultureInfo.InvariantCulture);
+        float qw = float.Parse(rotationData[3], CultureInfo.InvariantCulture);
+        //position = new Vector3(x, y, z);//RealWorld object in holoWorld
+        //rotation = new Quaternion(qx, qy, qz, qw);
+        //StatusTextManager.GetComponent<TextMesh>().text = position.ToString()+"\n"+rotation.ToString()+"\n"+ parts[3];
         ////unity uses Left handed thus we need to change the system 
         ////we keep y and z the same and x invert thus 
         ////https://gamedev.stackexchange.com/questions/157946/converting-a-quaternion-in-a-right-to-left-handed-coordinate-system
-        //position = new Vector3(-x, y, -z);//RealWorld object in holoWorld
-        //rotation = new Quaternion(qx, -qy, qz, qw);
+        position = new Vector3(-x, y, z);//RealWorld object in holoWorld
+        rotation = new Quaternion(qx, -qy, -qz, qw);
+
         ////we are interestd in the vive Position in Hololens World hence we need to transform backwards
         ////we have our previous transformation matrix aka transform from vive to reference object 
-        //Vector3 refPos = referenceObject.transform.position;
-        //Quaternion refRot = referenceObject.transform.rotation;
-        //Quaternion invRefRot = Quaternion.Inverse(refRot);
-        //Vector3 invRefPos = invRefRot * refPos;
-        //controller.transform.position = invRefRot * position + invRefPos;
-        //controller.transform.rotation = invRefRot * rotation;
+        Vector3 refPos = referenceObject.transform.position;
+        Quaternion refRot = referenceObject.transform.rotation;
+        Quaternion invRefRot = Quaternion.Inverse(refRot);
+        Vector3 invRefPos = invRefRot * refPos;
+        controller.transform.position = invRefRot * position + refPos;
+        //controller.transform.position = referenceObject.transform.TransformDirection(position) - refPos;
+        controller.transform.rotation = invRefRot * rotation;
 
 
-        var incrementAmplifier = parts[0];
-        var buttonChanged = parts[1].Split(',');
+        
         float incrementAmp = float.Parse(incrementAmplifier, CultureInfo.InvariantCulture);
-        bool buttonAChanged = bool.Parse(buttonChanged[0]);
-        bool buttonBChanged = bool.Parse(buttonChanged[1]);
-        MoveObject(incrementAmp, buttonAChanged, buttonBChanged);
+        bool triggerButton = bool.Parse(buttonChanged[0]);
+        bool trackpadPressed = bool.Parse(buttonChanged[1]);
+        bool menuButton = bool.Parse(buttonChanged[2]);
+        bool gripButton = bool.Parse(buttonChanged[3]);
+        MoveObject(incrementAmp, triggerButton, trackpadPressed,menuButton,gripButton);
         
     }
-    private void MoveObject(float incrementAmp, bool buttonAChanged, bool buttonBChanged)
+    private void MoveObject(float xTrackpadPosition, bool triggerButton, bool trackpadPressed, bool menuButton, bool gripButton)
     {
-        if (buttonAChanged == true)
+        //var temp = buttonAChanged;
+        //buttonAChanged = buttonBChanged;
+        //buttonBChanged = temp;
+        if (menuButton == true)
         {
-            Debug.Log(buttonAChanged);
-        }
-        if (buttonBChanged == true)
-        {
-            Debug.Log(buttonBChanged);
+            fineIncrementMode = !fineIncrementMode;
         }
 
-        //Debug.Log(buttonBChanged);
+        
         //if buttonBCHaanged we change our mode frm moving to not moving or vice versa
         //if this happends we also disable to color highlighting
         //if buttonAchanged we move the axis the axis are numbered and include the rotation
         //axis num 0-5 x y z rotx roty rotz
         //incrementAmp is the multiplier for or stepsize
-        if (buttonAChanged == true)
+        if (triggerButton == true)
         {
             //change target Axis
             //first current highlight disable if moveObjectFlag is set
@@ -319,7 +327,7 @@ public class tcpScript : MonoBehaviour
             }
         }
 
-        if (buttonBChanged == true && moveObjectFlag == true)
+        if (gripButton == true && moveObjectFlag == true)
         {
             //disable moving
             moveObjectFlag = false;
@@ -340,7 +348,7 @@ public class tcpScript : MonoBehaviour
         }
 
 
-        if (buttonBChanged == true && moveObjectFlag == false)
+        if (gripButton == true && moveObjectFlag == false)
         {
             //enable moving
             moveObjectFlag = true;
@@ -357,47 +365,100 @@ public class tcpScript : MonoBehaviour
                 axisList[currentAxisNum].GetComponent<Renderer>().material.color = Color.red;
             }
         }
+        //move object
         if (moveObjectFlag == true)
         {
-            //move object
-            if (currentAxisNum < 3)
+            if (fineIncrementMode == false)
             {
-                //change position
-                switch (currentAxisNum)
+                //move object in rough mode
+                if (currentAxisNum < 3)
                 {
-                    case 0:
-                        referenceObject.transform.position += new Vector3(0.05f * incrementAmp, 0, 0);
-                        break;
-                    case 1:
-                        referenceObject.transform.position += new Vector3(0,0.05f * incrementAmp,  0);
-                        break;
-                    case 2:
-                        referenceObject.transform.position += new Vector3(0,0,0.05f * incrementAmp);
-                        break;
+                    var tempRotation = referenceObject.transform.rotation;//we need to transform the unit vectors in the coordinante system of the object before
+                                                                          //adding them to the current position of the object
+                                                                          //change position
+                    switch (currentAxisNum)
+                    {
+                        case 0:
+                            referenceObject.transform.position += tempRotation * new Vector3(0.05f * xTrackpadPosition, 0, 0);
+                            break;
+                        case 1:
+                            referenceObject.transform.position += tempRotation * new Vector3(0, 0.05f * xTrackpadPosition, 0);
+                            break;
+                        case 2:
+                            referenceObject.transform.position += tempRotation * new Vector3(0, 0, 0.05f * xTrackpadPosition);
+                            break;
+                    }
+
                 }
-                
+                else
+                {
+                    //change rotation
+                    switch (currentAxisNum)
+                    {
+                        case 3:
+                            referenceObject.transform.eulerAngles += new Vector3(0.2f * xTrackpadPosition, 0, 0);
+                            break;
+                        case 4:
+                            referenceObject.transform.eulerAngles += new Vector3(0, 0.2f * xTrackpadPosition, 0);
+                            break;
+                        case 5:
+                            referenceObject.transform.eulerAngles += new Vector3(0, 0, 0.2f * xTrackpadPosition);
+                            break;
+                    }
+                }
             }
             else
             {
-                //change rotation
-                switch (currentAxisNum)
+                //move object in fine mode
+                //move object only if trackpad is pressed and depending on the xposition
+                if (trackpadPressed == true)
                 {
-                    case 3:
-                        referenceObject.transform.eulerAngles+= new Vector3(0.2f * incrementAmp, 0, 0);
-                        break;
-                    case 4:
-                        referenceObject.transform.eulerAngles += new Vector3(0,0.2f * incrementAmp, 0);
-                        break;
-                    case 5:
-                        referenceObject.transform.eulerAngles += new Vector3(0,0,0.2f * incrementAmp);
-                        break;
+                    var inputDirection = Math.Sign(xTrackpadPosition);
+
+                    if (currentAxisNum < 3)
+                    {
+                        var tempRotation = referenceObject.transform.rotation;//we need to transform the unit vectors in the coordinante system of the object before
+                                                                              //adding them to the current position of the object
+                                                                              //change position
+                        switch (currentAxisNum)
+                        {
+                            case 0:
+                                referenceObject.transform.position += tempRotation * new Vector3(0.001f * inputDirection, 0, 0);
+                                break;
+                            case 1:
+                                referenceObject.transform.position += tempRotation * new Vector3(0, 0.001f * inputDirection, 0);
+                                break;
+                            case 2:
+                                referenceObject.transform.position += tempRotation * new Vector3(0, 0, 0.001f * inputDirection);
+                                break;
+                        }
+
+                    }
+                    else
+                    {
+                        //change rotation
+                        switch (currentAxisNum)
+                        {
+                            case 3:
+                                referenceObject.transform.eulerAngles += new Vector3(0.1f * inputDirection, 0, 0);
+                                break;
+                            case 4:
+                                referenceObject.transform.eulerAngles += new Vector3(0, 0.1f * inputDirection, 0);
+                                break;
+                            case 5:
+                                referenceObject.transform.eulerAngles += new Vector3(0, 0, 0.1f * inputDirection);
+                                break;
+                        }
+                    }
                 }
+
             }
+           
         }
 
         //if buttonBchanged == false and moveobjectflag==false nothing happens
     }
-
+    
     public void StopExchange()
     {
         exchangeStopRequested = true;
